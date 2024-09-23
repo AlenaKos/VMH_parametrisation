@@ -1,7 +1,10 @@
 # VMH_parametrisation
-Development of the homogenious ice nucleation process accounting for the mean ice crystals mass variability
+Air Parcel Model with Ice Physics: Code for Homogeneous Ice Nucleation Study.
+This repository contains the full codebase used in the paper "A New Parameterization for Homogeneous Ice Nucleation Driven by Highly Variable Dynamical Forcings."
 
--Source code, describing an air parcel microphysics based on the double-moment bulk scheme [Baumgartner, M., and P. Spichtinger, 2019], [Dolaptchiev, S. I., Spichtinger, P., Baumgartner, M., & Achatz, U. (2023)]. 
+Includes:
+
+-The core model simulates atmospheric air parcels, incorporating ice microphysics to study homogeneous ice nucleation under different dynamical forcings based on the double-moment bulk scheme [Baumgartner, M., and P. Spichtinger, 2019], [Dolaptchiev, S. I., Spichtinger, P., Baumgartner, M., & Achatz, U. (2023)]. 
 
 -script for reading and filtering the data form ICON-MS-GWaM model. Production of the initial conditions for gravity waves associated preturbations from the global climate model coupled to the GW parametrisation MS-GWaM [Bölöni, G., Y.-H. Kim, S. Borchert, and U. Achatz, 2021].  
 

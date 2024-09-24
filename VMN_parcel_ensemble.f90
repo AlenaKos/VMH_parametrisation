@@ -1,4 +1,4 @@
-program parcel_model_IC_VM_msgwam_old_copy_test
+program VMN_parcel_ensemble
     !parcel model for ice nucleation forced by artificial GW term sampled from the ICON/MS-GWaM results
     !double moment scheme integration and parameterisation are available 
 
@@ -23,27 +23,18 @@ program parcel_model_IC_VM_msgwam_old_copy_test
     CHARACTER(len = 150) :: filename_out,filename_main, filename_Sq
     REAL*8, dimension(:), allocatable :: w_hat_rand, omega_rand, phi_rand, a_rand, &
     mom_flux_out, w00_out
-    
 
     ! define parameters for ensemble calcultaion. 
     ! number of tests - number_of_tests, starting number of test - nteststart,
-    !  number of test for detailed output - n_out, number of nucleation events allowed -n_nucleations, 
+    !  number of test for detailed output - n_out, number of nucleation events -n_nucleations, 
     ! number of gravity waves - n_GWs
 
+    ! cases for constructing the fit: 1GW, 2GW, 5Gw, 6GW, 10GW and all this cases with the present background updraft
+    ! cases for validation: 3GW, 8GW, 14GW
+    ! cases for validation with different time steps: 6GW with w0 background updraft
 
-
-    ! INTEGER :: number_of_tests = 3000, n_tests, n_out =1, n_nucleations=0, n_GWs = 10
-    ! INTEGER :: number_of_tests = 1, n_tests, n_out =1, n_nucleations=0, n_GWs = 1 !2995 nucl
-    ! INTEGER :: nteststart = 2, number_of_tests = 588574, n_tests, n_out =58451, n_nucleations=0, n_GWs = 5
-    INTEGER :: nteststart = 2, number_of_tests = 500000, n_tests, n_out =58451, n_nucleations=0, n_GWs = 6 ! used for vereficationINTEGER :: nteststart = 2, number_of_tests = 500000, n_tests, n_out =58451, n_nucleations=0, n_GWs = 6
-    ! INTEGER :: nteststart = 200, number_of_tests = 20000, n_tests, n_out =2492, n_nucleations=0, n_GWs = 1 ! single event verification
-    ! INTEGER :: nteststart = 200, number_of_tests = 20000, n_tests, n_out =4515, n_nucleations=0, n_GWs = 12 ! single event verification
-    
-    ! INTEGER :: nteststart = 200, number_of_tests = 20000, n_tests, n_out =4497, n_nucleations=0, n_GWs = 1 ! single nucleation event verification 
-
-    
-    ! INTEGER :: nteststart = 10100, number_of_tests = 20100, n_tests, n_out =10206, n_nucleations=0, n_GWs = 17
-    ! INTEGER :: nteststart = 10100, number_of_tests = 40100, n_tests, n_out =13764, n_nucleations=0, n_GWs = 3
+    ! number_of_tests is usually =< n_datasize, 
+    INTEGER :: nteststart = 2, number_of_tests = 500000, n_tests, n_out =58451, n_nucleations=0, n_GWs = 6 ! used for verefication 
     
     !parameters for GW and Ice nucleation constants
     REAL*8, parameter :: &
@@ -86,10 +77,6 @@ program parcel_model_IC_VM_msgwam_old_copy_test
     REAL*8,dimension(:),allocatable :: w_sample, omega_sample , vertvel_ls_sample
     character(len = 200), dimension(3) :: filename_Ftdata
 
-    ! set filename and size for Ft data 
-    ! filename_Ftdata(1)= '../icon_visualisation/w_hat_1sample.dat'
-    ! filename_Ftdata(2)= '../icon_visualisation/omega_1sample.dat'
-    ! n_datasize = 521956
 
     ! Data for forcing construction in the initial data set (used for the fit)
     !define path to the data from ICON
@@ -237,7 +224,8 @@ DO n_tests=nteststart,number_of_tests
     In_conditions(1) = n_rand
     In_conditions(3) = In_conditions(1) *m_rand
 
-    ! solve 
+    ! -------------------------------------------------------------------------------------
+    ! solve the system of equations
     rr(:,n_tests) = solve_nucleation(Approach_case, &
     In_conditions,t_start,t_final,dt,a_rand,omega_rand,phi_rand,w00_msgwam,filename_out,n_tests)
 
@@ -248,7 +236,8 @@ ENDDO
  print*, 'new cleaned version is used'
 
  print*, 'number of nucleations:', n_nucleations, ' in ', number_of_tests, ' number of test'
- !write final output
+
+ !write final output for ensamble calculations
 
 
  open(newunit = unit_nr, file = filename_main, status = 'replace')  
@@ -260,17 +249,19 @@ ENDDO
 
  close(unit = unit_nr) 
 !  deallocate(seed)
+
+!  contained functions
 contains
 
 !main function to execute the integration with prescribed approach, IC and time
 
 FUNCTION solve_nucleation(Apr_c, In_conditions,t_start,t_final,dt,A_loc,om_loc,phi_loc,w00,filename_out,n_tests) result(res_hn)
     implicit none
-    INTEGER :: Apr_c, n_tests
-    REAL*8 :: t_start, t_final,dt
-    REAL*8, dimension(3) :: In_conditions
+    INTEGER, INTENT(IN) :: Apr_c, n_tests
+    REAL*8,  INTENT(IN) :: t_start, t_final,dt
+    REAL*8, dimension(3), INTENT(IN)  :: In_conditions
+    CHARACTER(len = 150),INTENT(IN)  :: filename_out
     REAL*8, dimension(14+3*n_GWs-3) :: res_hn !n, S, q
-    CHARACTER(len = 150) :: filename_out
     !parameters for calculations 
     REAL*8, allocatable :: q_1_fs(:), q_2_fs(:), &
     q_3_fs(:), Phi_1_fs(:), Phi_2_fs(:), y_in_local(:), &
@@ -283,13 +274,12 @@ FUNCTION solve_nucleation(Apr_c, In_conditions,t_start,t_final,dt,A_loc,om_loc,p
     INTEGER :: ind_t0, ngw
     real*8 :: t0_loc, Ft0_loc, m0_loc, m0_recalc_loc, &
     n_post_loc, qt0_loc,F_mult, w00, q_post_loc, t0_loc_test
-    real*8, dimension(n_GWs) :: A_loc, om_loc, phi_loc
+    real*8, dimension(n_GWs),INTENT(IN)  :: A_loc, om_loc, phi_loc
     real*8,dimension(2) :: Phi_S1, Phi_S2, q1S, q2S, q3S
     REAL*8, parameter :: &
     CMC = 4.3 * 10.0**(-8.)
     INTEGER :: jj
-    REAL*8 :: rev_t0 
-    REAL*8 :: m0_apr
+    REAL*8 :: rev_t0, m0_apr
     rev_t0 = 1/dt
 
     ! Initialaze outout for new test 
@@ -384,9 +374,6 @@ FUNCTION solve_nucleation(Apr_c, In_conditions,t_start,t_final,dt,A_loc,om_loc,p
                 t0_loc = t_time
                 ind_t0 = n
                 
-                ! DO ngw =1,n_GWs
-                !     F_mult = F_mult + A_loc(ngw)*cos(om_loc(ngw)*t_time + phi_loc(ngw))
-                ! ENDDO
                 Ft0_loc = F_mult
                 qt0_loc = y_in_local(3)
                 print*, 'Nucleation at time:', t0_loc, 'F(t0)=', Ft0_loc
@@ -414,6 +401,7 @@ FUNCTION solve_nucleation(Apr_c, In_conditions,t_start,t_final,dt,A_loc,om_loc,p
     
     CASE(2)
         !Constant mass case, parameterisation
+        ! this part was done only for case of 1GW, to be rewritten
         print*, 'parameterisation with constant mass (n, S)'
         
 !         yn_in = In_conditions(1)
@@ -913,7 +901,7 @@ END FUNCTION solve_nucleation
 
 FUNCTION n_0_parametrisation_simplefit(S_res, t,n_init,Temp,A,omg,phi,w00,m0) result(n_res)
     implicit none
-    REAL*8 :: S_res, t, y, n_init, F, Ft0, n_res
+    REAL*8 :: S_res, t, n_init, Ft0, n_res
     REAL*8, dimension(n_GWs), INTENT(IN)  :: A, omg, phi
     REAL*8, INTENT(IN) :: Temp, w00
     REAL*8, INTENT(OUT) ::  m0
@@ -1160,12 +1148,6 @@ subroutine outputdata(w, om, w_ls,n,filename_Ftdata)
     
     close(unit)
     
-    ! Now 'data' contains the values read from the binary file
-    
-    ! Do whatever you want with the data
-    
-    ! print *, 'Data read from file:'
-   !  print *, data
 
    !  test the data correctness for bounds :
    DO i=1,n
@@ -1185,4 +1167,4 @@ subroutine outputdata(w, om, w_ls,n,filename_Ftdata)
 
 end subroutine outputdata
 
-end program parcel_model_IC_VM_msgwam_old_copy_test
+end program VMN_parcel_ensemble
